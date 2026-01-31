@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { addDemoHeaders } from '../middleware/demo/header.js';
 import { catalogPage, courseDetailPage } from './catalog/catalog.js';
 import { homePage, aboutPage, demoPage, testErrorPage } from './index.js';
+import { facultyListPage, facultyDetailPage } from './faculty/faculty.js';
 
 // Create a new router instance
 const router = Router();
@@ -21,5 +22,9 @@ router.get('/test-error', testErrorPage);
 
 // TODO: Add import statements for controllers and middleware
 // TODO: Add route definitions
+
+//faculty pages
+router.get('/faculty', facultyListPage)
+router.get('/faculty/:facultyId', facultyDetailPage)
 
 export default router;
