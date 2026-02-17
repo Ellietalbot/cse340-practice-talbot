@@ -6,6 +6,15 @@ import { fileURLToPath } from 'url';
 import routes from './src/controllers/routes.js';
 import { addLocalVariables } from './src/middleware/global.js';
 
+
+import { setupDatabase, testConnection } from './src/models/setup.js';
+
+import session from 'express-session';
+import connectPgSimple from 'connect-pg-simple';
+import { caCert } from './src/models/db.js';
+
+import { startSessionCleanup } from './src/utils/session-cleanup.js';
+
 /**
  * Server configuration
  */
@@ -19,12 +28,45 @@ const PORT = process.env.PORT || 3000;
  */
 const app = express();
 
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+
+// Initialize PostgreSQL session store
+const pgSession = connectPgSimple(session);
+
+// Configure session middleware
+app.use(session({
+    store: new pgSession({
+        conObject: {
+            connectionString: process.env.DB_URL,
+            // Configure SSL for session store connection (required by BYU-I databases)
+            ssl: {
+                ca: caCert,
+                rejectUnauthorized: true,
+                checkServerIdentity: () => { return undefined; }
+            }
+        },
+        tableName: 'session',
+        createTableIfMissing: true
+    }),
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: NODE_ENV.includes('dev') !== true,
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000
+    }
+}));
+startSessionCleanup();
+
 /**
  * Configure Express
  */
 app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'src/views'));
+
 
 /**
  * Global Middleware
@@ -40,6 +82,7 @@ app.use('/', routes);
  * Error Handling
  */
 
+
 // 404 handler
 app.use((req, res, next) => {
     const err = new Error('Page Not Found');
@@ -48,11 +91,15 @@ app.use((req, res, next) => {
 });
 
 // Global error handler
+// Global error handler
 app.use((err, req, res, next) => {
     // Prevent infinite loops, if a response has already been sent, do nothing
     if (res.headersSent || res.finished) {
         return next(err);
     }
+
+    // Log the error for debugging
+    console.error('Error caught by error handler:', err);
 
     // Determine status and template
     const status = err.status || 500;
@@ -69,13 +116,13 @@ app.use((err, req, res, next) => {
     try {
         res.status(status).render(`errors/${template}`, context);
     } catch (renderErr) {
+        console.error('Error rendering error template:', renderErr);
         // If rendering fails, send a simple error page instead
         if (!res.headersSent) {
             res.status(status).send(`<h1>Error ${status}</h1><p>An error occurred.</p>`);
         }
     }
 });
-
 /**
  * Start WebSocket Server in Development Mode; used for live reloading
  */
@@ -101,6 +148,8 @@ if (NODE_ENV.includes('dev')) {
 /**
  * Start Server
  */
-app.listen(PORT, () => {
+app.listen(PORT, async() => {
+    await setupDatabase();
+    await testConnection();
     console.log(`Server is running on http://127.0.0.1:${PORT}`);
 });
