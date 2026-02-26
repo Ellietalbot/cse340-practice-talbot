@@ -1,6 +1,7 @@
 import { Router } from 'express';
-import { body, validationResult } from 'express-validator';
+import {validationResult } from 'express-validator';
 import { createContactForm, getAllContactForms } from '../../models/forms/contact.js';
+import { contactValidation } from '../../middleware/validation/forms.js';
 
 const router = Router();
 
@@ -24,7 +25,9 @@ const handleContactSubmission = async (req, res) => {
 
     if (!errors.isEmpty()) {
         // Log validation errors for developer debugging
-        console.error('Validation errors:', errors.array());
+        errors.array().forEach(error => {
+        req.flash('error', error.msg);
+        });
         // Redirect back to form without saving
         return res.redirect('/contact');
     }
@@ -35,11 +38,11 @@ const handleContactSubmission = async (req, res) => {
     try {
         // Save to database
         await createContactForm(subject, message);
-        console.log('Contact form submitted successfully');
-        // Redirect to responses page on success
-        res.redirect('/contact/responses');
+        req.flash('success', 'Thank you for contacting us! We will respond soon.');
+        res.redirect('/contact');
     } catch (error) {
         console.error('Error saving contact form:', error);
+        req.flash('error', 'Unable to submit your message. Please try again later.');
         res.redirect('/contact');
     }
 };
@@ -53,7 +56,9 @@ const showContactResponses = async (req, res) => {
     try {
         contactForms = await getAllContactForms();
     } catch (error) {
-        console.error('Error retrieving contact forms:', error);
+        console.error('Error saving contact form:', error);
+        req.flash('error', 'Unable to submit your message. Please try again later.');
+        res.redirect('/contact');
     }
 
     res.render('forms/contact/responses', {
@@ -70,20 +75,7 @@ router.get('/', showContactForm);
 /**
  * POST /contact - Handle contact form submission with validation
  */
-router.post('/',
-    [
-        body('subject')
-            .trim()
-            .isLength({ min: 2 })
-            .withMessage('Subject must be at least 2 characters'),
-        body('message')
-            .trim()
-            .isLength({ min: 10 })
-            .withMessage('Message must be at least 10 characters')
-    ],
-    handleContactSubmission
-);
-
+router.post('/', contactValidation, handleContactSubmission);
 /**
  * GET /contact/responses - Display all contact form submissions
  */

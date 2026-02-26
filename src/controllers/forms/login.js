@@ -1,23 +1,10 @@
-import { body, validationResult } from 'express-validator';
+import {validationResult } from 'express-validator';
 import { findUserByEmail, verifyPassword } from '../../models/forms/login.js';
 import { Router } from 'express';
+import { loginValidation } from '../../middleware/validation/forms.js';
 
 const router = Router();
 
-/**
- * Validation rules for login form
- */
-const loginValidation = [
-    body('email')
-        .trim()
-        .isEmail()
-        .withMessage('Please provide a valid email address')
-        .normalizeEmail(),
-
-    body('password')
-        .isLength({ min: 8 })
-        .withMessage('Password is required')
-];
 
 /**
  * Display the login form.
@@ -32,11 +19,14 @@ const showLoginForm = (req, res) => {
  * Process login form submission.
  */
 const processLogin = async (req, res) => {
-    // Check for validation errors
+
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) {
-        console.error('Validation error', errors.array())
+        errors.array().forEach(error => {
+        req.flash('error', error.msg);
+        });
+        // Redirect back to form without saving
         return res.redirect('/login');
     }
 
@@ -47,25 +37,26 @@ const processLogin = async (req, res) => {
         const user = await findUserByEmail(email);
 
         if(!user){
-            console.log("User not found")
+            req.flash('error', 'Invalid email or password')
             return res.redirect('/login');
         }
 
         const passwordIsValid = await verifyPassword(password, user.password);
 
         if(!passwordIsValid){
-            console.log("Invalid password")
+            req.flash('error', 'Invalid email or password')
             return res.redirect('/login');
         }
 
-        // SECURITY: Remove password from user object before storing in session
-        delete user.password;
 
+        delete user.password;
+        req.flash('success', 'Successfully logged in')
         req.session.user = user;
         return res.redirect('/dashboard')
         
     } catch (error) {
         console.error("Error during login:", error)
+        req.flash('error', 'Error during login')
         return res.redirect('/login');
     }
 };
@@ -77,38 +68,23 @@ const processLogin = async (req, res) => {
  * specify a custom name when creating the session in server.js.
  */
 const processLogout = (req, res) => {
-    // First, check if there is a session object on the request
+
     if (!req.session) {
-        // If no session exists, there's nothing to destroy,
-        // so we just redirect the user back to the home page
         return res.redirect('/');
     }
 
-    // Call destroy() to remove this session from the store (PostgreSQL in our case)
     req.session.destroy((err) => {
         if (err) {
-            // If something goes wrong while removing the session from the database:
+
             console.error('Error destroying session:', err);
 
-            /**
-             * Clear the session cookie from the browser anyway, so the client
-             * does not keep sending an invalid session ID.
-             */
             res.clearCookie('connect.sid');
 
-            /** 
-             * Normally we would respond with a 500 error since logout did not fully succeed.
-             * Example: return res.status(500).send('Error logging out');
-             * 
-             * Since this is a practice site, we will redirect to the home page anyway.
-             */
             return res.redirect('/');
         }
 
-        // If session destruction succeeded, clear the session cookie from the browser
         res.clearCookie('connect.sid');
 
-        // Redirect the user to the home page
         res.redirect('/');
     });
 };
@@ -120,7 +96,6 @@ const showDashboard = (req, res) => {
     const user = req.session.user;
     const sessionData = req.session;
 
-    // Security check! Ensure user and sessionData do not contain password field
     if (user && user.password) {
         console.error('Security error: password found in user object');
         delete user.password;
@@ -130,8 +105,6 @@ const showDashboard = (req, res) => {
         delete sessionData.user.password;
     }
 
-    // TODO: Render the dashboard view (dashboard)
-    // TODO: Pass title: 'Dashboard', user, and sessionData to template
     return res.render('dashboard', {
         title: 'Dashboard',
         user: user,

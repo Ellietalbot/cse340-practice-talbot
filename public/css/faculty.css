@@ -11,6 +11,9 @@
         padding: 1.5rem;
         background: #fff;
         transition: box-shadow 0.2s ease;
+        position: relative;
+        display: flex;
+        flex-direction: row;
 
         &:hover {
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -40,6 +43,18 @@
             line-height: 1.5;
             margin: 0;
             font-style: italic;
+        }
+        .faculty-photo {
+            width: 20%;
+            aspect-ratio: 1 / 1;
+            object-fit: cover;
+            display: block;
+            margin-bottom: 7px;
+            background: url('https://placehold.co/480') center / cover no-repeat;
+            border-radius: 8px;
+        }
+        .member-detail {
+            padding: 50px;
         }
     }
 }
@@ -109,6 +124,9 @@
     max-width: 800px;
     margin: 0 auto 2rem auto;
     text-align: center;
+    display: flex;
+    flex-direction: row;
+    gap:20px;
 
     h1 {
         color: #2c5aa0;
@@ -127,6 +145,15 @@
         margin: 0;
         font-style: italic;
         font-size: 1.1rem;
+    }
+    .faculty-photo{
+        width: 20%;
+        aspect-ratio: 1 / 1;
+        object-fit: cover;
+        display: block;
+        margin-bottom: 7px;
+        background: url('https://placehold.co/480') center / cover no-repeat;
+        border-radius: 8px;
     }
 }
 

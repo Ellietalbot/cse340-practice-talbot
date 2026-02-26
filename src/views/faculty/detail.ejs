@@ -2,9 +2,12 @@
 
 <main>
   <div class="faculty-detail">
-    <h1><%= faculty.name %></h1>
-    <p class="facultyId"><%= faculty.title %></p>
-    <p class="department"><%= faculty.department %></p>
+    <img class="faculty-photo" src="/images/faculty/<%=faculty.slug%>.jpg" alt="Faculty photo">
+    <div class="faculty-title">
+      <h1><%= faculty.name %></h1>
+      <p class="facultyId"><%= faculty.title %></p>
+      <p class="department"><%= faculty.department %></p>
+    </div>
   </div>
 
   <div class="sections">
